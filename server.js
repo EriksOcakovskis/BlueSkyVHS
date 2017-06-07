@@ -36,27 +36,31 @@ hbs.registerHelper('getCurrentYear', currentYear());
 app.get('/', (req, res) => {
 
   res.render('index', {
-    title:  `Home | ${siteName}`,
+    title:  siteTitle('Home'),
     message: 'Oh, shut up!'
   });
 });
 
 app.get('/about', (req, res) => {
   res.render('about', {
-    title:  `About | ${siteName}`
+    title:  siteTitle('About')
     // message: 'Oh, shut up!',
   });
 });
 
-app.get('/bad', (req, res) => {
-  res.send({
-    errorMessage: 'Bad request 400'
+app.get('/videos', (req, res) => {
+  res.render('videos', {
+    title: siteTitle('Videos')
   });
 });
 
 app.listen(port, () => {
   console.log(`Server is up on port ${port}`);
 });
+
+function siteTitle(pageTitle) {
+  return `${pageTitle} | ${siteName}`;
+}
 
 function currentYear() {
   return new Date().getFullYear();
