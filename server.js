@@ -88,7 +88,7 @@ app.post('/register', (req, res) => {
   if (req.user){
     res.redirect('/');
   } else {
-    var userData = (_.pick(req.body, ['user', 'email', 'password']));
+    var userData = (_.pick(req.body, ['email', 'password']));
 
     userValidator(userData).then(() => {
       return userRegistrator(userData);
@@ -118,8 +118,17 @@ app.post('/login', (req, res) => {
     if (req.user) {
     res.redirect('/');
   } else {
-
     console.log(req.body);
+    var userData = (_.pick(req.body, ['email', 'password']));
+
+    userValidator(userData).then(() => {
+      return credentialsToUser(userData);
+    }).then((user) => {
+      res.cookie('auth', user.auth);
+      res.redirect('/');
+    }).catch((error) =>{
+      res.render('login', {error: error});
+    });
     // var userData = (_.pick(req.body, ['user', 'password']));
 
     // console.log(userData.password);
@@ -129,8 +138,6 @@ app.post('/login', (req, res) => {
     //     console.log(hash);
     //   });
     // });
-
-    res.render('login');
   }
 });
 
@@ -158,7 +165,7 @@ function currentYear() {
 function userValidator(userData) {
   return new Promise((resolve, reject) => {
     if (!validator.isEmail(userData.email)) {
-      reject('Eneter a valid e-mail');
+      reject('Enter a valid e-mail');
     } else if (validator.isEmpty(userData.password)){
       reject('Password must not be empty');
     } else {
@@ -288,6 +295,31 @@ function tokenToUser(token) {
             reject('Database error');
           } else {
             resolve(user);
+          }
+        });
+      }
+    });
+  });
+}
+
+function credentialsToUser(userData) {
+  return new Promise((resolve, reject) => {
+    userData.email = validator.normalizeEmail(userData.email);
+    redisClient.hget('users', userData.email, (err, id) => {
+      if (err) {
+        reject('Databse error');
+      } else if (!id) {
+        reject('Wrong credentials');
+      } else {
+        redisClient.hgetall(`user:${id}`, (err, user) => {
+          if (err) {
+            reject('Database error');
+          } else {
+            bcrypt.compare(userData.password, user.password_hash).then((reply) => {
+              resolve(user);
+            }).catch((error) => {
+              reject('Wrong credentials');
+            });
           }
         });
       }

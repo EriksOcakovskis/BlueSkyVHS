@@ -10,6 +10,15 @@
         <input id="email" name="email" placeholder="somebody@mailbox.com" type="email"></input>
         <label for="password">Password</label>
         <input id="password" name="password" placeholder="Password" type="password"></input>
+
+        {{#if error}}
+          <div class="alert callout">
+            <p>
+              {{error}}
+            </p>
+          </div>
+        {{/if}}
+
         <input class="button expanded" type="submit" value="Login"></input>
 <!--         <p class="text-center">
           <a href="/email-login">Forgot password?</a>
