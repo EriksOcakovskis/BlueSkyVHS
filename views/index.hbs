@@ -4,6 +4,9 @@
   {{> header}}
   <body>
     <p>{{message}}</p>
+    {{#if user}}
+      <h2>Hello {{user.email}}!</h2>
+    {{/if}}
   </body>
   {{> footer}}
 </html>

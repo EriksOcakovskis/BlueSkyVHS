@@ -1,8 +1,12 @@
 <header>
   <h1>{{title}}</h1>
   <p><a href="/">Home</a></p>
-  <p><a href="/login">Login</a></p>
-  <p><a href="/register">Register</a></p>
   <p><a href="/about">About</a></p>
-  <p><a href="/videos">Videos</a></p>
+  {{#if user}}
+    <p><a href="/videos">Videos</a></p>
+    <p><a href="/logout">Logout</a></p>
+  {{else}}
+    <p><a href="/login">Login</a></p>
+    <p><a href="/register">Register</a></p>
+  {{/if}}
 </header>

@@ -45,68 +45,102 @@ app.use((req, res, next) => {
 //   res.send('<h1>Maintenece</h1>');
 // });
 
-app.use(express.static(staticPath));
+// app.use(express.static(staticPath));
 
 hbs.registerPartials(partialsPath);
 hbs.registerHelper('getCurrentYear', currentYear());
 
-app.get('/', (req, res) => {
+app.get('/', isLoggedIn, (req, res) => {
   res.render('index', {
     title:  siteTitle('Home'),
-    message: 'Oh, shut up!'
+    message: 'Oh, shut up!',
+    user: req.user
   });
 });
 
-app.get('/about', (req, res) => {
+app.get('/about', isLoggedIn, (req, res) => {
   res.render('about', {
-    title:  siteTitle('About')
+    title:  siteTitle('About'),
+    user: req.user
     // message: 'Oh, shut up!',
   });
 });
 
-app.get('/videos', (req, res) => {
+app.get('/videos', authenticate, (req, res) => {
   res.render('videos', {
-    title: siteTitle('Videos')
+    title: siteTitle('Videos'),
+    user: req.user
   });
 });
 
-app.get('/register', (req, res) => {
-  setToken(2);
-  res.render('register');
+app.get('/register', isLoggedIn,(req, res) => {
+  if (req.user) {
+    res.redirect('/');
+  } else {
+    res.render('register', {
+      title: siteTitle('Register'),
+      user: req.user
+    });
+  }
 });
 
 app.post('/register', (req, res) => {
-  var userData = (_.pick(req.body, ['user', 'email', 'password']));
-
-  userValidator(userData).then(() => {
-    return userRegistrator(userData);
-  }).then((userId) => {
-    return assignToken(userId, setToken(userId));
-  }).then((token) => {
-    res.cookie('auth', token);
+  if (req.user){
     res.redirect('/');
-  }).catch((error) => {
-    res.render('register', {error: error});
-  });
+  } else {
+    var userData = (_.pick(req.body, ['user', 'email', 'password']));
+
+    userValidator(userData).then(() => {
+      return userRegistrator(userData);
+    }).then((userId) => {
+      return assignToken(userId, setToken(userId));
+    }).then((token) => {
+      res.cookie('auth', token);
+      res.redirect('/');
+    }).catch((error) => {
+      res.render('register', {error: error});
+    });
+  }
 });
 
-app.get('/login', (req, res) => {
-  res.render('login');
+app.get('/login', isLoggedIn, (req, res) => {
+    if (req.user) {
+    res.redirect('/');
+  } else {
+    res.render('login', {
+      title: siteTitle('Login'),
+      user: req.user
+    });
+  }
 });
 
 app.post('/login', (req, res) => {
-  console.log(req.body);
-  // var userData = (_.pick(req.body, ['user', 'password']));
+    if (req.user) {
+    res.redirect('/');
+  } else {
 
-  // console.log(userData.password);
+    console.log(req.body);
+    // var userData = (_.pick(req.body, ['user', 'password']));
 
-  // bcrypt.genSalt(10, (err, salt) => {
-  //   bcrypt.hash(userData.password, salt, (err, hash) => {
-  //     console.log(hash);
-  //   });
-  // });
+    // console.log(userData.password);
 
-  res.render('login');
+    // bcrypt.genSalt(10, (err, salt) => {
+    //   bcrypt.hash(userData.password, salt, (err, hash) => {
+    //     console.log(hash);
+    //   });
+    // });
+
+    res.render('login');
+  }
+});
+
+app.get('/logout', isLoggedIn, (req, res) => {
+  if (req.user) {
+    res.clearCookie('auth');
+    res.redirect('/');
+  } else {
+    res.redirect('/');
+  }
 });
 
 app.listen(port, () => {
@@ -213,3 +247,50 @@ function assignToken(userId, token) {
   });
 }
 
+function authenticate(req, res, next) {
+  var token = req.cookies.auth;
+  tokenToUser(token).then((user) => {
+    if (!user) {
+      return Promise.reject();
+    }
+    req.user = user;
+    next();
+  }).catch((error) => {
+    console.log(error);
+    res.redirect('/');
+  });
+}
+
+function isLoggedIn(req, res, next) {
+  var token = req.cookies.auth;
+  tokenToUser(token).then((user) => {
+    if (!user) {
+      return Promise.reject();
+    }
+    req.user = user;
+    next();
+  }).catch((error) => {
+    console.log(error);
+    next();
+  });
+}
+
+function tokenToUser(token) {
+  return new Promise((resolve, reject) => {
+    redisClient.hget('auths', token, (err, id) => {
+      if (err) {
+        reject('Database error');
+      } else if (!id) {
+        reject('User not found');
+      } else {
+        redisClient.hgetall(`user:${id}`, (err, user) => {
+          if (err) {
+            reject('Database error');
+          } else {
+            resolve(user);
+          }
+        });
+      }
+    });
+  });
+}
