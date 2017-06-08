@@ -56,3 +56,7 @@ typings/
 
 # dotenv environment variables file
 .env
+
+# Custom
+dev.conf
+redis_dump.rdb
