@@ -13,7 +13,8 @@ const cookieParser = require('cookie-parser');
 const multer  = require('multer');
 
 var app = express();
-var redisClient = redis.createClient();
+var redisServer = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+var redisClient = redis.createClient(redisServer);
 var uploadsPath = path.join(__dirname, 'public/uploads');
 var partialsPath = path.join(__dirname, 'views/partials');
 var port = process.env.PORT || 47599;
