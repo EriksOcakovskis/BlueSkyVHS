@@ -60,3 +60,4 @@ typings/
 # Custom
 dev.conf
 redis_dump.rdb
+public/uploads

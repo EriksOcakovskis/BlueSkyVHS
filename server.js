@@ -10,13 +10,18 @@ const bcrypt = require('bcryptjs');
 const validator = require('validator');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
+const multer  = require('multer');
 
 var app = express();
 var redisClient = redis.createClient();
-var staticPath = path.join(__dirname, 'public');
+var uploadsPath = path.join(__dirname, 'public/uploads');
 var partialsPath = path.join(__dirname, 'views/partials');
 var port = process.env.PORT || 47599;
 var siteName = 'BlueSky VHS';
+var upload = multer({
+  dest: __dirname + '/public/uploads/',
+  limits: {fileSize: 20000000, files:1}
+});
 
 redisClient.on('error', function (err) {
     console.log('Error ' + err);
@@ -45,7 +50,7 @@ app.use((req, res, next) => {
 //   res.send('<h1>Maintenece</h1>');
 // });
 
-// app.use(express.static(staticPath));
+app.use(express.static(uploadsPath));
 
 hbs.registerPartials(partialsPath);
 hbs.registerHelper('getCurrentYear', currentYear());
@@ -67,9 +72,35 @@ app.get('/about', isLoggedIn, (req, res) => {
 });
 
 app.get('/videos', authenticate, (req, res) => {
-  res.render('videos', {
-    title: siteTitle('Videos'),
+  allVideos().then((videos) => {
+    res.render('videos', {
+      title: siteTitle('Videos'),
+      user: req.user,
+      videos: videos,
+    });
+  }).catch((error) => {
+    res.render('videos', {
+      title: siteTitle('Videos'),
+      user: req.user,
+      error: error
+    });
+  });
+});
+
+app.get('/videos/upload', authenticate, (req, res) => {
+  res.render('videos_upload', {
+    title: siteTitle('Upload Videos'),
     user: req.user
+  });
+});
+
+app.post('/videos/upload', authenticate, upload.single('video'), (req, res) => {
+  console.log(req.file);
+  videToDb(req.file.filename, req.user).then(() => {
+    res.redirect('/videos');
+  }).catch((error) => {
+    fs.unlink(uploadsPath + '/' + req.file.filename);
+    res.redirect('/videos/upload');
   });
 });
 
@@ -84,7 +115,7 @@ app.get('/register', isLoggedIn,(req, res) => {
   }
 });
 
-app.post('/register', (req, res) => {
+app.post('/register', isLoggedIn, (req, res) => {
   if (req.user){
     res.redirect('/');
   } else {
@@ -114,7 +145,7 @@ app.get('/login', isLoggedIn, (req, res) => {
   }
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', isLoggedIn, (req, res) => {
     if (req.user) {
     res.redirect('/');
   } else {
@@ -129,15 +160,6 @@ app.post('/login', (req, res) => {
     }).catch((error) =>{
       res.render('login', {error: error});
     });
-    // var userData = (_.pick(req.body, ['user', 'password']));
-
-    // console.log(userData.password);
-
-    // bcrypt.genSalt(10, (err, salt) => {
-    //   bcrypt.hash(userData.password, salt, (err, hash) => {
-    //     console.log(hash);
-    //   });
-    // });
   }
 });
 
@@ -326,3 +348,36 @@ function credentialsToUser(userData) {
     });
   });
 }
+
+function allVideos() {
+  return new Promise((resolve, reject) => {
+    redisClient.LRANGE('videos', 0, -1, (err, videos) => {
+      if (err) {
+        reject('Databse error');
+      } else if (videos === undefined || videos.length == 0) {
+        reject('No videos found');
+      } else {
+        resolve(videos);
+      }
+    });
+  });
+}
+
+function videToDb(file, userData) {
+  return new Promise((resolve, reject) => {
+    redisClient.hget('users', userData.email, (err, id) => {
+      if (err) {
+        reject('Databse error');
+      } else {
+        redisClient.rpush('videos', file, (err, reply) => {
+          if (err) {
+            reject('Databse error');
+          } else {
+            resolve();
+          }
+        });
+      }
+    });
+  });
+}
+

@@ -3,7 +3,23 @@
   {{> head}}
   {{> header}}
   <body>
-    <p>Videos will be here!</p>
+    {{#if videos}}
+      {{#each videos as |video|}}
+        <video src={{video}} width="480" controls>
+          Sorry, your browser doesn't support embedded videos,
+          but don't worry, you can <a href={{video}}>download it</a>
+          and watch it with your favorite video player!
+        </video>
+      {{/each}}
+    {{/if}}
+    {{#if error}}
+      <div class="alert callout">
+        <p>
+          {{error}}
+        </p>
+      </div>
+    {{/if}}
+    <p><a href="/videos/upload">Upload a video</a></p>
   </body>
   {{> footer}}
 </html>
